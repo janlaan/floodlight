@@ -26,6 +26,7 @@ var AppRouter = Backbone.Router.extend({
         "switch/:id/port/:p":"portDetails", // not clear if needed
         "hosts":"hostList",
         "host/:id":"hostDetails",
+        "anomalies":"anomalyList",
         // "vlans":"vlanList" // maybe one day
         // "vlan/:id":"vlanDetails"
     },
@@ -84,16 +85,23 @@ var AppRouter = Backbone.Router.extend({
         $('ul.nav > li').removeClass('active');
         $('li > a[href*="/hosts"]').parent().addClass('active');
     },
+    
+    anomalyList:function() {
+    	$('#content').html(new AnomalyListView({model:an}).render().el);
+        $('ul.nav > li').removeClass('active');
+        $('li > a[href*="/anomalies"]').parent().addClass('active');
+    },
 
 });
 
 // load global models and reuse them
 var swl = new SwitchCollection();
 var hl  = new HostCollection();
+var an = new AnomalyCollection();
 
 var updating = true;
 
-tpl.loadTemplates(['home', 'status', 'topology', 'header', 'switch', 'switch-list', 'switch-list-item', 'host', 'host-list', 'host-list-item', 'port-list', 'port-list-item', 'flow-list', 'flow-list-item'],
+tpl.loadTemplates(['home', 'status', 'topology', 'header', 'switch', 'switch-list', 'switch-list-item', 'host', 'host-list', 'host-list-item', 'port-list', 'port-list-item', 'flow-list', 'flow-list-item', 'anomalies', 'anomaly-list-item'],
     function () {
         app = new AppRouter();
         Backbone.history.start({pushState: true});
@@ -119,11 +127,13 @@ tpl.loadTemplates(['home', 'status', 'topology', 'header', 'switch', 'switch-lis
             // wait for the page to be rendered before loading any data
             swl.fetch();
             hl.fetch();
+            an.fetch();
             
             setInterval(function () {
                 if(updating) {
                     swl.fetch();
                     hl.fetch();
+                    an.fetch();
                 }
             }, 3000);
         });

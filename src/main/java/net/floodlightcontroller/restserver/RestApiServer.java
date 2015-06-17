@@ -16,8 +16,10 @@
 
 package net.floodlightcontroller.restserver;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ import org.restlet.Request;
 import org.restlet.Response;
 import org.restlet.Restlet;
 import org.restlet.Server;
+import org.restlet.data.ClientInfo;
 import org.restlet.data.Parameter;
 import org.restlet.data.Protocol;
 import org.restlet.data.Reference;
@@ -42,6 +45,8 @@ import org.restlet.service.StatusService;
 import org.restlet.util.Series;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.almworks.sqlite4java.*;
 
 import net.floodlightcontroller.core.internal.FloodlightProvider;
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
@@ -73,6 +78,7 @@ public class RestApiServer implements IFloodlightModule, IRestApiService {
 
 	protected class RestApplication extends Application {
 		protected Context context;
+		protected SQLiteConnection db;
 
 		public RestApplication() {
 			super(new Context());
@@ -87,15 +93,39 @@ public class RestApiServer implements IFloodlightModule, IRestApiService {
 				baseRouter.attach(rr.basePath(), rr.getRestlet(context));
 			}
 
-			Filter slashFilter = new Filter() {            
+			Filter slashFilter = new Filter() {
+				
 				@Override
 				protected int beforeHandle(Request request, Response response) {
 					Reference ref = request.getResourceRef();
+					ClientInfo c = request.getClientInfo();
+					String address = c.getAddress(); 
+					String name = c.getAgent();
 					String originalPath = ref.getPath();
 					if (originalPath.contains("//"))
 					{
 						String newPath = originalPath.replaceAll("/+", "/");
 						ref.setPath(newPath);
+					}
+					
+					if(Math.random() < 1.1) { // Chance of 0.1 (sample rate of 10%) of storing the API access in the log.
+						try {
+							//Note: It is extremely inefficient to open the database connection every time.
+							SQLiteConnection db = new SQLiteConnection(new File("restlog.sqlite"));
+							db.open(true);
+							SQLiteStatement st = db.prepare("INSERT INTO restlog (ip, agent, api, timestamp) VALUES (?, ?, ?, ?)");
+							
+							st.bind(1, address);
+							st.bind(2, name);
+							st.bind(3, ref.getPath());
+							st.bind(4, new Date().getTime());
+							st.step();
+							st.dispose();
+							db.dispose();
+						} catch(SQLiteException e) {
+							logger.info("SQLite Exception:" + e.getMessage());	
+						}
+						logger.info("[RESTSERVER] path: " + ref.getPath() + ", from: " + address + " - " + name);
 					}
 					return Filter.CONTINUE;
 				}
