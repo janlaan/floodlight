@@ -70,16 +70,19 @@ public class RestApiServer implements IFloodlightModule, IRestApiService {
 
 	private static String httpsPort;
 	private static String httpPort;
+	
+
+	public static SQLiteConnection db;
+	public static SQLiteStatement st;
 
 
 	// ***********
 	// Application
 	// ***********
 
-	protected class RestApplication extends Application {
+	public class RestApplication extends Application {
 		protected Context context;
-		protected SQLiteConnection db;
-
+		
 		public RestApplication() {
 			super(new Context());
 			this.context = getContext();
@@ -111,9 +114,6 @@ public class RestApiServer implements IFloodlightModule, IRestApiService {
 					if(Math.random() < 1.1) { // Chance of 0.1 (sample rate of 10%) of storing the API access in the log.
 						try {
 							//Note: It is extremely inefficient to open the database connection every time.
-							SQLiteConnection db = new SQLiteConnection(new File("restlog.sqlite"));
-							db.open(true);
-							SQLiteStatement st = db.prepare("INSERT INTO restlog (ip, agent, api, timestamp) VALUES (?, ?, ?, ?)");
 							
 							st.bind(1, address);
 							st.bind(2, name);
@@ -229,6 +229,16 @@ public class RestApiServer implements IFloodlightModule, IRestApiService {
 				sb.append("), ");
 			}
 			logger.debug(sb.toString());
+		}
+
+		RestApiServer.db = new SQLiteConnection(new File("restlog.sqlite"));
+		try{
+			RestApiServer.db.open(true);
+			RestApiServer.st = db.prepare("INSERT INTO restlog (ip, agent, api, timestamp) VALUES (?, ?, ?, ?)");
+		}
+		catch(SQLiteException e)
+		{
+			System.out.println("Unable to open restlog database.");
 		}
 
 		RestApplication restApp = new RestApplication();
